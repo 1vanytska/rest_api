@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
-from .schemas import BookSchema
-from .storage import books
+from ..schemas.book_schema import BookSchema
+from ..storage.book_storage import books
+from ..models.book_model import Book
 
 book_schema = BookSchema()
 books_schema = BookSchema(many=True)
@@ -26,14 +27,18 @@ def add_book():
     if errors:
         return jsonify(errors), 400
 
-    new_id = max([b["id"] for b in books], default=0) + 1
-    new_book = {"id": new_id, **data}
+    book = Book(data["title"], data["author"])
+    books.append(book)
 
-    books.append(new_book)
-    return jsonify(book_schema.dump(new_book)), 201
+    return jsonify(book_schema.dump(book.to_dict())), 201
 
 @book_bp.route('/<int:book_id>', methods=['DELETE'])
 def delete_book(book_id):
-    global books
-    books = [b for b in books if b["id"] != book_id]
+    book = next((book for book in books if book["id"] == book_id), None)
+    
+    if book is None:
+        return jsonify({"message": "Book not found"}), 404
+    
+    books.remove(book)
     return jsonify({"message": f"Book with ID {book_id} has been deleted"}), 200
+
